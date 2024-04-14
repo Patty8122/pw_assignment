@@ -30,14 +30,12 @@ genid() {
     flock -u 200
 }
 
-
+# test script to call genid concurrently
+# usage: ./test.sh <number of processes> 
+# example: ./test.sh 10 
 
 # initialize the current id file
 echo 0 > "/var/tmp/current_id"
-
-# # test script to call genid concurrently
-# # usage: ./test.sh <number of processes> <number of IDs per process>
-# # example: ./test.sh 10 1000
 
 NUM_PROCESSES=$1
 
@@ -49,11 +47,18 @@ fi
 # create the file
 touch "ids.txt"
 
+# call genid concurrently
 for ((i=0; i<$NUM_PROCESSES; i++)); do
     genid >> "ids.txt" &
 done
 
 wait
 
-# 
+# check if they are equal to (seq 1 NUM_PROCESSES)
+if [ $(sort -n "ids.txt" | uniq | wc -l) -eq $NUM_PROCESSES ]; then
+    echo "id.txt contains the generated sequential numbers from 1 to $NUM_PROCESSES"
+else
+    echo "Some ids are not unique or not sequential. Check ids.txt for more information."
+fi 
+
 
