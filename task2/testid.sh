@@ -1,9 +1,10 @@
 #! /usr/bin/bash
 
+
 genid() {
     # acquire lock
     exec 200>/var/tmp/genid.lock
-    flock 200 || exit 1
+    flock -x 200 || exit 1 
 
     # load from file the current id
     if [ ! -f "/var/tmp/current_id" ]; then
@@ -38,6 +39,7 @@ genid() {
 echo 0 > "/var/tmp/current_id"
 
 NUM_PROCESSES=$1
+PER_PROCESS_IDS=$2
 
 if [ "$2" == "seq" ]; then
     seq_flag=1
@@ -56,7 +58,13 @@ touch "ids.txt"
 start=`date +%s%N`
 if [ $seq_flag -eq 1 ]; then
     for ((i=1; i<=$NUM_PROCESSES; i++)); do
-        echo $i >> "ids.txt"
+        num_digits=${#i}
+        num_zeros=$((5 - num_digits))       
+        zeros=""
+        for ((j=0; j<$num_zeros; j++)); do
+            zeros="${zeros}0"
+        done
+        echo "${zeros}${i}" >> "ids.txt"
     done
     end=`date +%s%N`
     echo "Sequential generation took $((end-start)) nanoseconds."
@@ -64,9 +72,10 @@ if [ $seq_flag -eq 1 ]; then
 fi
 
 
-# call genid concurrently
-for ((i=0; i<$NUM_PROCESSES; i++)); do
-    genid >> "ids.txt" &
+# call PER_PROCESS_IDS times the genid function concurrently 
+for ((i=0; i<$NUM_PROCESSES; i++)); 
+do
+    ( for ((j=0; j<$PER_PROCESS_IDS; j++)); do genid >> "ids.txt"; done ) &
 done
 
 wait
@@ -75,11 +84,14 @@ end=`date +%s%N`
 echo "Concurrent generation took $((end-start)) nanoseconds."
 
 # check if they are equal to (seq 1 NUM_PROCESSES)
-if [ $(sort -n "ids.txt" | uniq | wc -l) -eq $NUM_PROCESSES ]; then
-    echo "id.txt contains the generated sequential numbers from 1 to $NUM_PROCESSES"
+ideal_count=$((NUM_PROCESSES * PER_PROCESS_IDS))
+arr=()
+while read line; do
+    arr+=($line)
+done < "ids.txt"
+
+if [ ${#arr[@]} -eq $ideal_count ]; then
+    echo "id.txt contains the generated sequential numbers from 1 to $ideal_count"
 else
     echo "Some ids are not unique or not sequential. Check ids.txt for more information."
 fi 
-
-
-
