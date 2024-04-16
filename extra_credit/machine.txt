@@ -1,2 +1,0 @@
-dpattisapu-aws-00011-1-0001 slots=4
-dpattisapu-aws-00011-1-0002 slots=4
